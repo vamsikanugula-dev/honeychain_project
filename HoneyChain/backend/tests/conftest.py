@@ -67,6 +67,10 @@ TRUNCATE_ORDER = (
     # reaches it anyway through ``lab_test_results``, which is exactly why
     # ``clean_database`` re-installs the catalogue after emptying the tables —
     # and why no test can depend on the order the two happened in.
+    # Phase 8 children first: QR resolvers and durable event references point at
+    # supply-chain records. The test environment never submits them remotely.
+    "package_qr_codes",
+    "blockchain_transactions",
     # Phase 7 (children first: a distribution names a package, a package names
     # the run that made it, and a run names the unit that did the work)
     "distributions",

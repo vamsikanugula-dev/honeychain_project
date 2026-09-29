@@ -126,6 +126,7 @@ export const ENDPOINTS = {
     hives: (batchId) => `/batches/${batchId}/hives`,
     collection: (batchId) => `/batches/${batchId}/collection`,
     timeline: (batchId) => `/batches/${batchId}/timeline`,
+    traceability: (batchId) => `/batches/${batchId}/traceability`,
   },
 
   // -- Phase 6 -------------------------------------------------------------
@@ -203,6 +204,7 @@ export const ENDPOINTS = {
     package: (packageId) => `/packages/${packageId}`,
     packageRelease: (packageId) => `/packages/${packageId}/release`,
     packagesForBatch: (batchId) => `/batches/${batchId}/packages`,
+    packageQr: (packageId) => `/packages/${packageId}/qr`,
   },
 
   distribution: {
@@ -219,6 +221,16 @@ export const ENDPOINTS = {
     retailerShipments: '/retailer/shipments',
     retailerReceive: (distributionId) => `/retailer/shipments/${distributionId}/receive`,
     retailerPackages: '/retailer/packages',
+  },
+
+  // -- Phase 8 -------------------------------------------------------------
+  blockchain: {
+    transactions: '/blockchain/transactions',
+    transaction: (txId) => `/blockchain/transactions/${txId}`,
+    batch: (batchId) => `/blockchain/batches/${batchId}`,
+    health: '/blockchain/health',
+    retry: '/blockchain/retry',
+    publicTraceability: (token) => `/public/traceability/${token}`,
   },
 
   admin: {

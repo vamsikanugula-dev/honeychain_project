@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 
 import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -40,6 +41,8 @@ export default function PackageInformationPage({
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [qr, setQr] = useState(null);
+  const [generatingQr, setGeneratingQr] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,6 +59,19 @@ export default function PackageInformationPage({
   useEffect(() => {
     load();
   }, [load]);
+
+  const generateQr = async () => {
+    if (!record) return;
+    setGeneratingQr(true);
+    setError(null);
+    try {
+      setQr(await packagingService.generatePackageQr(record.id));
+    } catch (caught) {
+      setError(normaliseError(caught));
+    } finally {
+      setGeneratingQr(false);
+    }
+  };
 
   const statusMeta = record
     ? PACKAGE_STATUS_META[record.status] || { label: record.status_label, variant: 'neutral' }
@@ -89,7 +105,7 @@ export default function PackageInformationPage({
           <CardHeader
             title={record.package_code}
             description={`${record.batch_code}${record.collection_code ? ` · ${record.collection_code}` : ''}`}
-            action={<Badge variant={statusMeta.variant}>{record.status_label || statusMeta.label}</Badge>}
+            action={<div className="flex items-center gap-2"><Badge variant={statusMeta.variant}>{record.status_label || statusMeta.label}</Badge><Button size="sm" variant="secondary" loading={generatingQr} onClick={generateQr}>Generate QR</Button></div>}
           />
           <CardBody className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Fact
@@ -131,6 +147,12 @@ export default function PackageInformationPage({
             <Fact label="Created" value={formatDateTime(record.created_at)} />
           </CardBody>
         </Card>
+      ) : null}
+
+      {qr ? (
+        <Alert variant="success">
+          QR resolver <span className="font-mono">{qr.qr_id}</span> is {qr.reused ? 'already active' : 'generated'}. Print or encode only this HoneyChain URL: <a className="break-all font-mono underline" href={qr.trace_url}>{qr.trace_url}</a>. Its blockchain event synchronizes independently.
+        </Alert>
       ) : null}
 
       {record?.traceability?.length ? (

@@ -67,6 +67,7 @@ from app.schemas.distribution import (
 )
 from app.services import batch_lifecycle
 from app.services.audit_service import AuditService
+from app.services.blockchain_service import BlockchainEventType, BlockchainService
 from app.services.collection_service import CollectionService
 from app.services.names import beekeeper_name, cluster_name, person_name
 from app.services.packaging_service import PackagingService
@@ -112,6 +113,7 @@ class DistributionService:
         self.batches = BatchRepository(session)
         self.users = UserRepository(session)
         self.audit = AuditService(session)
+        self.blockchain = BlockchainService(session)
         self.collections = CollectionService(session)
         self.packaging = PackagingService(session)
 
@@ -267,7 +269,11 @@ class DistributionService:
                 f"{package.package_code} to {shipment.destination}"
             ),
         )
+        event = self.blockchain.queue_distribution(
+            BlockchainEventType.DISTRIBUTION_CREATED, "CREATED", shipment, user
+        )
         self.session.commit()
+        self.blockchain.submit_after_commit(event.event_id)
         return self.get_distribution(user, shipment.id)
 
     def list_distributions(
@@ -447,7 +453,11 @@ class DistributionService:
                 },
                 description=f"Batch {batch.batch_code} entered distribution",
             )
+        event = self.blockchain.queue_distribution(
+            BlockchainEventType.DISTRIBUTION_DISPATCHED, "DISPATCHED", shipment, user
+        )
         self.session.commit()
+        self.blockchain.submit_after_commit(event.event_id)
         return self.get_distribution(user, shipment.id)
 
     def mark_in_transit(self, user, distribution_id: uuid.UUID, payload) -> DistributionDetail:
@@ -471,7 +481,11 @@ class DistributionService:
                 "location_note": payload.notes,
             },
         )
+        event = self.blockchain.queue_distribution(
+            BlockchainEventType.IN_TRANSIT, "IN-TRANSIT", shipment, user
+        )
         self.session.commit()
+        self.blockchain.submit_after_commit(event.event_id)
         return self.get_distribution(user, shipment.id)
 
     def deliver(self, user, distribution_id: uuid.UUID, payload) -> DistributionDetail:
@@ -509,7 +523,11 @@ class DistributionService:
                 "received_by_id": str(shipment.received_by_id) if shipment.received_by_id else None,
             },
         )
+        event = self.blockchain.queue_distribution(
+            BlockchainEventType.DELIVERED, "DELIVERED", shipment, user
+        )
         self.session.commit()
+        self.blockchain.submit_after_commit(event.event_id)
         return self.get_distribution(user, shipment.id)
 
     def receive(self, user, distribution_id: uuid.UUID, payload) -> DistributionDetail:
@@ -532,7 +550,8 @@ class DistributionService:
             )
 
         already_received = shipment.received_by_id is not None
-        if shipment.status is not DistributionStatus.DELIVERED:
+        delivery_recorded = shipment.status is not DistributionStatus.DELIVERED
+        if delivery_recorded:
             self._transition(shipment, DistributionStatus.DELIVERED, action="shipment_receive")
             shipment.delivered_at = datetime.now(tz=timezone.utc)
 
@@ -563,7 +582,20 @@ class DistributionService:
                 f"{shipment.distribution_code} received by {person_name(user) or 'the retailer'}"
             ),
         )
+        delivery_event = (
+            self.blockchain.queue_distribution(
+                BlockchainEventType.DELIVERED, "DELIVERED", shipment, user
+            )
+            if delivery_recorded
+            else None
+        )
+        receipt_event = self.blockchain.queue_distribution(
+            BlockchainEventType.RETAILER_RECEIVED, "RETAILER-RECEIVED", shipment, user
+        )
         self.session.commit()
+        self.blockchain.submit_after_commit(
+            *(event.event_id for event in (delivery_event, receipt_event) if event is not None)
+        )
         return self.get_distribution(user, shipment.id)
 
     def cancel(self, user, distribution_id: uuid.UUID, payload) -> DistributionDetail:

@@ -35,6 +35,7 @@ from app.schemas.batch import (
 )
 from app.schemas.common import ApiResponse, PaginationParams, ok, paginated
 from app.services.batch_service import BatchService
+from app.services.blockchain_service import BlockchainService
 
 router = APIRouter(prefix="/batches", tags=["Honey batches"])
 
@@ -156,6 +157,48 @@ def batch_collection(
     session: Session = Depends(db_session),
 ) -> dict:
     return ok(BatchService(session).get_batch(user, batch_id).collection)
+
+
+@router.get(
+    "/{batch_id}/traceability",
+    response_model=ApiResponse[dict],
+    summary="Unified HoneyChain and blockchain traceability for one batch",
+)
+def batch_traceability(
+    batch_id: uuid.UUID,
+    user: User = Depends(READ_BATCHES),
+    session: Session = Depends(db_session),
+) -> dict:
+    batch = BatchService(session).get_batch(user, batch_id)
+    from app.repositories.distribution_repository import DistributionRepository
+    from app.repositories.packaging_repository import PackageRepository
+
+    transactions = BlockchainService(session).batch_transactions(batch.batch_code)
+    packages = PackageRepository(session).for_batch(batch_id)
+    shipments = DistributionRepository(session).for_batch(batch_id)
+    return ok(
+        {
+            "batch": batch.model_dump(mode="json"),
+            "collection": batch.collection.model_dump(mode="json"),
+            "processing": batch.processing.model_dump(mode="json") if batch.processing else None,
+            "laboratory": batch.laboratory.model_dump(mode="json") if batch.laboratory else None,
+            "packaging": batch.packaging.model_dump(mode="json") if batch.packaging else None,
+            "packages": [
+                {"id": str(item.id), "package_id": item.package_code, "status": str(item.status), "size": str(item.package_size), "unit": str(item.unit)}
+                for item in packages
+            ],
+            "distribution": [
+                {"id": str(item.id), "distribution_id": item.distribution_code, "status": str(item.status), "destination": item.destination, "delivered_at": item.delivered_at, "received_at": item.received_at}
+                for item in shipments
+            ],
+            "blockchain": {
+                "transactions": transactions,
+                "synchronized": bool(transactions)
+                and all(row.get("blockchain_status") == "CONFIRMED" for row in transactions),
+            },
+            "timeline": batch.timeline,
+        }
+    )
 
 
 @router.get(

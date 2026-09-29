@@ -128,6 +128,7 @@ export const WORKSPACES = {
           { label: 'Processing', to: '/kvic/processing', icon: 'Factory' },
           { label: 'Laboratory', to: '/kvic/laboratory', icon: 'FlaskConical' },
           { label: 'Traceability', to: '/kvic/traceability', icon: 'Route' },
+          { label: 'Blockchain Traceability', to: '/kvic/blockchain', icon: 'ShieldCheck' },
           { label: 'Cluster Analytics', to: '/kvic/cluster-analytics', icon: 'ChartColumn' },
         ],
       },
@@ -230,6 +231,7 @@ export const WORKSPACES = {
         label: 'Platform',
         items: [
           { label: 'Audit Logs', to: '/admin/audit-logs', icon: 'ScrollText' },
+          { label: 'Blockchain Ledger', to: '/admin/blockchain', icon: 'ShieldCheck' },
           { label: 'KVIC Oversight', to: '/kvic', icon: 'ShieldCheck' },
         ],
       },

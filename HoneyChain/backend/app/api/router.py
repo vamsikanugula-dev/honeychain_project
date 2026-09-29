@@ -3,9 +3,9 @@
 Every feature phase mounts its own router here, which is why adding a module
 never requires editing ``main.py`` or restructuring existing code::
 
-    # Phase 3 — blockchain traceability
-    from app.routes import traceability
-    api_router.include_router(traceability.router)
+    # Phase 8 — blockchain traceability
+    from app.routes import blockchain
+    api_router.include_router(blockchain.router)
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from app.routes import (
     auth,
     batches,
     beekeepers,
+    blockchain,
     clusters,
     collections,
     distribution,
@@ -77,10 +78,11 @@ api_router.include_router(laboratory.router)
 api_router.include_router(packaging.router)
 api_router.include_router(distribution.router)
 
-# -- Planned phases (uncomment as each module is implemented) ---------------
-# from app.routes import blockchain, supply_chain
-# api_router.include_router(blockchain.router)        # later phase — chain anchoring
-# api_router.include_router(supply_chain.router)      # later phase — packaging, distribution, QR
+# -- Hyperledger Fabric anchoring and public QR traceability (Phase 8) -------
+api_router.include_router(blockchain.router)
+
+# -- Planned phases ----------------------------------------------------------
+# from app.routes import supply_chain
 
 
 @api_router.get("/", include_in_schema=False)

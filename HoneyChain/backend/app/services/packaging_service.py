@@ -32,6 +32,7 @@ from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
 
+from app.core.config import get_settings
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationError
 from app.models.enums import (
     DistributionStatus,
@@ -71,6 +72,7 @@ from app.schemas.packaging import (
 from app.services import batch_lifecycle
 from app.schemas.common import display_choice
 from app.services.audit_service import AuditService
+from app.services.blockchain_service import BlockchainService
 from app.services.collection_service import CollectionService
 from app.services.names import beekeeper_name, cluster_name, person_name
 
@@ -140,6 +142,7 @@ class PackagingService:
         self.distributions = DistributionRepository(session)
         self.batches = BatchRepository(session)
         self.audit = AuditService(session)
+        self.blockchain = BlockchainService(session)
         self.collections = CollectionService(session)
 
     # ------------------------------------------------------------------ #
@@ -502,7 +505,9 @@ class PackagingService:
             entity_id=run.id,
             metadata={"packaging_code": run.packaging_code, "batch_code": run.batch.batch_code},
         )
+        event = self.blockchain.queue_packaging_started(run, run.batch, user)
         self.session.commit()
+        self.blockchain.submit_after_commit(event.event_id)
         return self.get_packaging(user, run.id)
 
     def complete_packaging(self, user, packaging_id: uuid.UUID, payload) -> PackagingDetail:
@@ -578,7 +583,14 @@ class PackagingService:
                     "status": str(package.status),
                 },
             )
+        package_events = [
+            self.blockchain.queue_package_created(package, run, run.batch, user) for package in packages
+        ]
+        packaged_event = self.blockchain.queue_packaged(run, run.batch, user)
         self.session.commit()
+        self.blockchain.submit_after_commit(
+            *(event.event_id for event in [*package_events, packaged_event])
+        )
         return self.get_packaging(user, run.id)
 
     def cancel_packaging(self, user, packaging_id: uuid.UUID, payload) -> PackagingDetail:
@@ -639,6 +651,51 @@ class PackagingService:
         package = self._load_package(package_id)
         self._assert_can_read_package(user, package)
         return self.to_package_detail(package, user=user)
+
+    def generate_package_qr(self, user, package_id: uuid.UUID) -> dict:
+        """Issue the one stable, opaque QR resolver for an existing package.
+
+        The package code and all traceability facts stay server-side.  A QR only
+        carries the opaque token that resolves through HoneyChain's public API.
+        Repeating this operation reuses the same resolver and its same logical
+        blockchain event instead of printing a second identity for the jar.
+        """
+        self._assert_can_work(user)
+        package = self._load_package(package_id)
+        try:
+            qr, created, event = self.blockchain.get_or_create_qr(package, user)
+        except IntegrityError:
+            # A second browser tab can race on the package-level unique key. The
+            # winner's stable resolver is the correct idempotent response.
+            self.session.rollback()
+            qr = self.blockchain.qr_codes.for_package(package_id)
+            if qr is None:  # pragma: no cover - a genuine storage failure
+                raise
+            created = False
+            event = self.blockchain.events.by_event_id(f"QR-{qr.qr_code}-GENERATED")
+        if created:
+            self.audit.record(
+                AuditAction.PACKAGE_STATUS_CHANGED,
+                actor=user,
+                entity_type="package_qr",
+                entity_id=qr.id,
+                metadata={"package_code": package.package_code, "qr_code": qr.qr_code, "status": qr.status},
+                description=f"QR resolver generated for package {package.package_code}",
+            )
+            self.session.commit()
+            if event is not None:
+                self.blockchain.submit_after_commit(event.event_id)
+        settings = get_settings()
+        return {
+            "id": str(qr.id),
+            "qr_id": qr.qr_code,
+            "package_id": package.package_code,
+            "status": qr.status,
+            "trace_token": qr.public_token,
+            "trace_url": f"{settings.FRONTEND_URL.rstrip('/')}/trace/{qr.public_token}",
+            "blockchain_event_id": event.event_id if event else f"QR-{qr.qr_code}-GENERATED",
+            "reused": not created,
+        }
 
     def release_package(self, user, package_id: uuid.UUID, payload=None) -> PackageDetail:
         """Release a freshly created package for distribution.

@@ -73,6 +73,7 @@ from app.schemas.collection import (
     EligibleHiveList,
 )
 from app.services.audit_service import AuditService
+from app.services.blockchain_service import BlockchainService
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +176,7 @@ class CollectionService:
         self.readings = SensorReadingRepository(session)
         self.analyses = AiAnalysisRepository(session)
         self.audit = AuditService(session)
+        self.blockchain = BlockchainService(session)
 
     # ------------------------------------------------------------------ #
     # Scope — every read and write starts here
@@ -648,9 +650,14 @@ class CollectionService:
                 collection_code=collection.collection_code,
                 source_hive_codes=[row.hive_code for row in sources],
             )
-            # One commit for the status change, the batch and both audit rows. If
-            # any part fails, no batch exists and the collection is still open.
+            # The two event rows are written in the same transaction as the real
+            # collection/batch transition. Submission happens only after commit.
+            collection_event = self.blockchain.queue_collection_completed(collection, batch, user)
+            batch_event = self.blockchain.queue_batch_created(collection, batch, user)
+            # One commit for the status change, the batch, audit rows and durable
+            # blockchain outbox rows. If any part fails, none of it exists.
             self.collections.commit()
+            self.blockchain.submit_after_commit(collection_event.event_id, batch_event.event_id)
         except IntegrityError as exc:
             self.collections.rollback()
             # The realistic cause is a concurrent completion of the same harvest:

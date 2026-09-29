@@ -84,7 +84,7 @@ export function ProcessingRunPanel({
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [form, setForm] = useState({
-    processing_type: 'FILTERING',
+    processing_type: '',
     processing_type_other: '',
     processing_unit_id: '',
     processing_date: '',
@@ -101,7 +101,7 @@ export function ProcessingRunPanel({
       const payload = await processingService.getRun(processingId);
       setRun(payload);
       setForm({
-        processing_type: payload.processing_type || 'FILTERING',
+        processing_type: payload.processing_type || '',
         processing_type_other: payload.processing_type_other || '',
         processing_unit_id: payload.processing_unit_id || '',
         processing_date: payload.processing_date || '',

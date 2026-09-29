@@ -8,6 +8,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingState } from '@/components/common/LoadingState';
 import { BatchTimeline } from '@/components/collections/BatchTimeline';
+import { BlockchainTraceability } from '@/components/collections/BlockchainTraceability';
 import { QualitySummaryCard } from '@/components/collections/QualitySummaryCard';
 import { BATCH_STATUS_META, COLLECTION_MESSAGES, unitLabel } from '@/constants/collection';
 import * as batchService from '@/services/batchService';
@@ -309,6 +310,8 @@ export function BatchDetailView({ batchId, collectionPath = null, hivePath = nul
       <QualitySummaryCard batch={batch} />
 
       <BatchTimeline stages={batch.timeline} />
+
+      <BlockchainTraceability batchId={batchId} />
     </div>
   );
 }

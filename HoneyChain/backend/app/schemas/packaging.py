@@ -116,7 +116,9 @@ class PackagingCreate(BaseModel):
 
     batch_id: uuid.UUID
     packaging_unit_id: uuid.UUID | None = None
-    packaging_type: PackagingType = PackagingType.JAR
+    packaging_type: PackagingType = Field(
+        description="Container type explicitly selected by the packaging operator."
+    )
     packaging_type_other: str | None = Field(
         default=None,
         max_length=120,
