@@ -43,6 +43,7 @@ from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
 
+from app.core.config import get_settings
 from app.core.exceptions import (
     ConflictError,
     ForbiddenError,
@@ -89,6 +90,7 @@ from app.schemas.laboratory import (
 )
 from app.services import batch_lifecycle
 from app.services.audit_service import AuditService
+from app.services.blockchain_service import BlockchainService
 from app.services.collection_service import CollectionService
 from app.services.names import beekeeper_name, cluster_name, person_name
 from app.services.quality_rules import EvaluatedResult, Verdict, decide, evaluate_parameter
@@ -153,6 +155,7 @@ class LaboratoryService:
         self.batches = BatchRepository(session)
         self.users = UserRepository(session)
         self.audit = AuditService(session)
+        self.blockchain = BlockchainService(session)
         self.collections = CollectionService(session)
 
     # ------------------------------------------------------------------ #
@@ -546,7 +549,9 @@ class LaboratoryService:
                 },
             )
 
+        event = self.blockchain.queue_lab_started(test, batch, user)
         self.session.commit()
+        self.blockchain.submit_after_commit(event.event_id)
         committed = self.tests.get_with_relations(test.id)
         return self.to_detail(committed, user)
 
@@ -792,7 +797,9 @@ class LaboratoryService:
             verdict=verdict,
             resulting_batch_status=decided_status,
         )
+        event = self.blockchain.queue_quality_result(test, batch, user, results)
         self.session.commit()
+        self.blockchain.submit_after_commit(event.event_id)
         logger.info(
             "Laboratory test completed",
             extra={
@@ -825,6 +832,16 @@ class LaboratoryService:
 
         results = self.tests.results_for_test(test.id)
         computed = self._verdict_for(test, results).result
+        previous_result = str(test.overall_result)
+        is_risk_override = (
+            payload.overall_result is LabResult.PASS
+            and previous_result in (LabResult.FAIL.value, LabResult.INCONCLUSIVE.value)
+        )
+        if is_risk_override and not get_settings().LAB_ALLOW_RISK_OVERRIDE:
+            raise ConflictError(
+                "Proceeding after a failed or held laboratory result is disabled by configuration.",
+                details={"lab_test": test.test_code, "previous_result": previous_result},
+            )
         if payload.overall_result is computed:
             raise ValidationError(
                 f"Test {test.test_code} already reads {computed}. An override must change the outcome; "
@@ -848,7 +865,16 @@ class LaboratoryService:
             test, actor=user, computed=str(computed), reason=payload.reason.strip()
         )
         self._apply_decision(user, test, payload.overall_result, previous_batch_status)
+        risk_event = (
+            self.blockchain.queue_proceeded_with_risk(
+                test, batch, user, previous_result, payload.reason.strip()
+            )
+            if is_risk_override
+            else None
+        )
         self.session.commit()
+        if risk_event is not None:
+            self.blockchain.submit_after_commit(risk_event.event_id)
         logger.warning(
             "Laboratory test overridden",
             extra={"test_code": test.test_code, "from": str(computed), "to": str(payload.overall_result)},

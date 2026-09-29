@@ -111,8 +111,9 @@ def health_detailed(settings: Settings = Depends(get_settings)) -> HealthDetailR
         },
         "authentication": {"status": "ok", "strategy": "JWT (access + rotating refresh)"},
         "blockchain": {
-            "status": placeholder(bool(settings.BLOCKCHAIN_RPC_URL)),
-            "phase": "Phase 3",
+            "status": "configured" if settings.blockchain_configured else "disabled",
+            "phase": "Phase 8",
+            "service": "Hyperledger Fabric transaction API",
         },
         # Phase 3 delivered the IoT foundation (device registry, sensor
         # configuration, MQTT + HTTP telemetry ingest). The status here reflects

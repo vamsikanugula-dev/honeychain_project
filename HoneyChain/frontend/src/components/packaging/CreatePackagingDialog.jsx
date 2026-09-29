@@ -33,7 +33,7 @@ export function CreatePackagingDialog({
 }) {
   const [form, setForm] = useState({
     packaging_unit_id: '',
-    packaging_type: 'JAR',
+    packaging_type: '',
     packaging_type_other: '',
     packaged_quantity: '',
     package_size: '',
@@ -47,8 +47,8 @@ export function CreatePackagingDialog({
   useEffect(() => {
     if (!open) return;
     setForm({
-      packaging_unit_id: units[0]?.id || '',
-      packaging_type: 'JAR',
+      packaging_unit_id: '',
+      packaging_type: '',
       packaging_type_other: '',
       // The remainder is the natural first suggestion, and it is still only a
       // suggestion: the operator can pack less, never more.
@@ -73,6 +73,9 @@ export function CreatePackagingDialog({
 
     if (!form.packaging_unit_id) {
       errors.packaging_unit_id = 'Choose the packaging unit that is doing the work.';
+    }
+    if (!form.packaging_type) {
+      errors.packaging_type = 'Select the package container type.';
     }
     if (form.packaging_type === 'OTHER' && !form.packaging_type_other.trim()) {
       errors.packaging_type_other = 'Say what the container is: "Other" on its own records nothing.';
@@ -183,7 +186,8 @@ export function CreatePackagingDialog({
           onOtherChange={(text) => setForm((current) => ({ ...current, packaging_type_other: text }))}
           otherLabel="Specify the container"
           otherPlaceholder="For example: 500 g glass jar with brass lid"
-          error={fieldErrors.packaging_type_other}
+          error={fieldErrors.packaging_type || fieldErrors.packaging_type_other}
+          placeholder="Select packaging type"
           hint="What the honey goes into. Choose Other for containers outside the list."
         />
 

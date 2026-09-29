@@ -12,6 +12,7 @@ import LandingPage from '@/pages/public/LandingPage';
 import AboutPage from '@/pages/public/AboutPage';
 import HowItWorksPage from '@/pages/public/HowItWorksPage';
 import ContactPage from '@/pages/public/ContactPage';
+import CustomerTraceabilityPage from '@/pages/public/CustomerTraceabilityPage';
 import NotFoundPage from '@/pages/public/NotFoundPage';
 
 // Auth
@@ -66,6 +67,7 @@ import AdminAlertsPage from '@/pages/admin/AdminAlertsPage';
 import AdminProcessingPage from '@/pages/admin/AdminProcessingPage';
 import AdminLaboratoryPage from '@/pages/admin/AdminLaboratoryPage';
 import AuditLogsPage from '@/pages/admin/AuditLogsPage';
+import BlockchainLedgerPage from '@/pages/blockchain/BlockchainLedgerPage';
 
 // Packaging (packaging unit)
 import ApprovedBatchesPage from '@/pages/packaging/ApprovedBatchesPage';
@@ -113,6 +115,9 @@ export function AppRoutes() {
         <Route path="how-it-works" element={<HowItWorksPage />} />
         <Route path="contact" element={<ContactPage />} />
       </Route>
+
+      {/* Customer QR resolution is public and contains no authenticated data. */}
+      <Route path="trace/:token" element={<CustomerTraceabilityPage />} />
 
       {/* Authentication */}
       <Route path="login" element={<LoginPage />} />
@@ -175,6 +180,7 @@ export function AppRoutes() {
             <Route path="laboratory/tests/:testId" element={<LabTestDetailPage />} />
             <Route path="traceability" element={<KvicTraceabilityPage />} />
             <Route path="traceability/:batchId" element={<KvicTraceabilityPage />} />
+            <Route path="blockchain" element={<BlockchainLedgerPage kvic />} />
             <Route path="cluster-analytics" element={<KvicClusterAnalyticsPage />} />
           </Route>
 
@@ -255,6 +261,7 @@ export function AppRoutes() {
             <Route path="laboratory/tests/:testId" element={<LabTestDetailPage />} />
             <Route path="laboratory/parameters" element={<ParameterCataloguePage />} />
             <Route path="audit-logs" element={<AuditLogsPage />} />
+            <Route path="blockchain" element={<BlockchainLedgerPage />} />
           </Route>
 
           {/* ----------------------------------------------- Packaging unit */}

@@ -79,6 +79,7 @@ from app.schemas.processing import (
 from app.services import batch_lifecycle
 from app.schemas.common import display_choice
 from app.services.audit_service import AuditService
+from app.services.blockchain_service import BlockchainService
 from app.services.collection_service import CollectionService
 from app.services.names import beekeeper_name, cluster_name, person_name
 
@@ -143,6 +144,7 @@ class ProcessingService:
         self.batches = BatchRepository(session)
         self.users = UserRepository(session)
         self.audit = AuditService(session)
+        self.blockchain = BlockchainService(session)
         # Scope resolution is shared with collections and batches, so a KVIC
         # officer's view of processing is filtered by exactly the same cluster
         # rule as their view of the harvest it came from.
@@ -599,11 +601,16 @@ class ProcessingService:
                         "batch_status": str(batch.status),
                     },
                 )
+            if payload.processing_type is None:
+                raise ValidationError(
+                    "Select processing type before allocating a batch that has no processing run.",
+                    details={"field": "processing_type", "batch_code": batch.batch_code},
+                )
             detail = self.create_run(
                 user,
                 ProcessingCreate(
                     batch_id=batch.id,
-                    processing_type=payload.processing_type or ProcessingType.FILTERING,
+                    processing_type=payload.processing_type,
                     notes=payload.notes,
                 ),
             )
@@ -834,7 +841,9 @@ class ProcessingService:
             run, actor=user, batch=batch, previous_batch_status=previous_batch_status
         )
         self._audit_batch_move(batch, previous_batch_status, user)
+        event = self.blockchain.queue_processing_started(run, batch, user)
         self.session.commit()
+        self.blockchain.submit_after_commit(event.event_id)
         # Re-read so the response is built from committed state, not from an
         # object still holding a pending transaction's identity map.
         return self.to_detail(self._load_run(run_id), user)
@@ -1048,7 +1057,9 @@ class ProcessingService:
         self.audit.batch_moved_to_lab_testing(
             run, actor=user, batch=batch, previous_batch_status=previous_batch_status
         )
+        event = self.blockchain.queue_processing_completed(run, batch, user)
         self.session.commit()
+        self.blockchain.submit_after_commit(event.event_id)
         logger.info(
             "Processing completed",
             extra={

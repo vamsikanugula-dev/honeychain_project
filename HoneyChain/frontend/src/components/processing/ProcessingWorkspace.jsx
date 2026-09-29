@@ -83,7 +83,7 @@ export function ProcessingWorkspace({ role = ROLES.PROCESSOR, view = 'overview',
   const [runFilters, setRunFilters] = useState({ page: 1, search: '', status: '' });
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [selectedRunId, setSelectedRunId] = useState(null);
-  const [unitForm, setUnitForm] = useState({ open: false, name: '', location: '', registration_identifier: '' });
+  const [unitForm, setUnitForm] = useState({ open: false, name: '', location: '', registration_identifier: '', type: '', unit_id: '' });
   const [unitError, setUnitError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState([]);
@@ -269,12 +269,16 @@ export function ProcessingWorkspace({ role = ROLES.PROCESSOR, view = 'overview',
 
   const openRun = async () => {
     if (!selectedBatch) return;
+    if (!unitForm.type) {
+      setUnitError({ message: 'Select processing type before opening the run.' });
+      return;
+    }
     setBusy(true);
     setUnitError(null);
     try {
       const created = await processingService.createRun({
         batch_id: selectedBatch.id,
-        processing_type: unitForm.type || 'FILTERING',
+        processing_type: unitForm.type,
         ...(unitForm.unit_id ? { processing_unit_id: unitForm.unit_id } : {}),
       });
       setSelectedBatch(null);
@@ -723,8 +727,10 @@ export function ProcessingWorkspace({ role = ROLES.PROCESSOR, view = 'overview',
             <Select
               label="Processing type"
               name="open_run_type"
-              value={unitForm.type || 'FILTERING'}
+              value={unitForm.type}
               onChange={(event) => setUnitForm((f) => ({ ...f, type: event.target.value }))}
+              placeholder="Select processing type"
+              required
               options={PROCESSING_TYPES}
             />
             <Select

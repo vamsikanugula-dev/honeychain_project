@@ -9,6 +9,7 @@ from app.core.database import Base
 from app.models.ai_alert import AiAlert
 from app.models.ai_analysis import HiveAiAnalysis
 from app.models.audit_log import AuditLog
+from app.models.blockchain import BlockchainStatus, BlockchainTransaction, PackageQrCode
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.beekeeper import Beekeeper
 from app.models.beekeeper_verification_history import BeekeeperVerificationHistory
@@ -79,6 +80,10 @@ __all__ = [
     "UserProfile",
     "RefreshToken",
     "AuditLog",
+    # Blockchain traceability outbox and public QR resolver (Phase 8)
+    "BlockchainStatus",
+    "BlockchainTransaction",
+    "PackageQrCode",
     # Beekeeping
     "Beekeeper",
     "BeekeeperVerificationHistory",

@@ -104,10 +104,23 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"]
     )
 
-    # -- Blockchain (Phase 3 — not implemented yet) -------------------------
+    # -- Blockchain traceability (Phase 8) -----------------------------------
+    # Only this backend configuration knows how to reach Fabric. Browser code
+    # calls HoneyChain's relative API routes and never receives this URL.
+    BLOCKCHAIN_BASE_URL: str = "http://54.160.152.176:3001"
+    BLOCKCHAIN_TIMEOUT_MS: int = 10000
+    BLOCKCHAIN_RETRY_ATTEMPTS: int = 3
+    # Kept on by default for real deployments. The client deliberately does not
+    # make network requests in the isolated test environment unless a test
+    # injects a client, preserving deterministic tests without faking a result.
+    BLOCKCHAIN_ENABLED: bool = True
+    # Legacy settings remain accepted so older deployment manifests keep loading.
     BLOCKCHAIN_NETWORK: str | None = None
     BLOCKCHAIN_RPC_URL: str | None = None
     BLOCKCHAIN_CONTRACT_ADDRESS: str | None = None
+    # Temporary development/demo safety valve. It is checked in the backend,
+    # never trusted from a button or request body.
+    LAB_ALLOW_RISK_OVERRIDE: bool = True
 
     # -- AI engine (Phase 4) -------------------------------------------------
     #: Reserved for a future hosted inference provider. The engine that ships
@@ -235,6 +248,11 @@ class Settings(BaseSettings):
     # --------------------------------------------------------------------- #
     # Derived helpers
     # --------------------------------------------------------------------- #
+    @property
+    def blockchain_configured(self) -> bool:
+        """Whether blockchain submission is enabled for this API process."""
+        return bool(self.BLOCKCHAIN_ENABLED and self.BLOCKCHAIN_BASE_URL)
+
     @property
     def mqtt_configured(self) -> bool:
         """True when a broker is configured, i.e. MQTT ingest should be started."""

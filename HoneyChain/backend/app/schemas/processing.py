@@ -98,7 +98,9 @@ class ProcessingCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     batch_id: uuid.UUID = Field(description="The COLLECTED batch this run will process.")
-    processing_type: ProcessingType = ProcessingType.FILTERING
+    processing_type: ProcessingType = Field(
+        description="Operation actually selected by the processor. The server never assumes Filtering."
+    )
     processing_type_other: str | None = Field(
         default=None,
         max_length=120,

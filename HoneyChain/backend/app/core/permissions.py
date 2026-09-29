@@ -136,6 +136,14 @@ class Permission(StrEnum):
     #: act about their own delivery, not authority over somebody else's shipment.
     SHIPMENT_RECEIVE = "SHIPMENT_RECEIVE"
 
+    # -- Blockchain traceability (Phase 8) -----------------------------------
+    #: Admin sees the raw real-Fabric ledger; KVIC sees only transactions whose
+    #: linked batch belongs to an authorised cluster.
+    BLOCKCHAIN_LEDGER_READ = "BLOCKCHAIN_LEDGER_READ"
+    #: Retrying an outbox submission is an operational control, never a ledger
+    #: write endpoint and never granted to a browser-supplied transaction type.
+    BLOCKCHAIN_SYNC_RETRY = "BLOCKCHAIN_SYNC_RETRY"
+
     # -- AI insights (Phase 4) ----------------------------------------------
     #: Read stored analyses for the caller's own hives, and ask for a fresh one.
     AI_READ_SELF = "AI_READ_SELF"
@@ -218,6 +226,8 @@ ROLE_PERMISSIONS: dict[UserRole, frozenset[Permission]] = {
             Permission.ADMIN_ROLE_ASSIGN,
             Permission.ADMIN_SYSTEM_MANAGE,
             Permission.AUDIT_READ,
+            Permission.BLOCKCHAIN_LEDGER_READ,
+            Permission.BLOCKCHAIN_SYNC_RETRY,
         }
     ),
     UserRole.KVIC_OFFICER: frozenset(
@@ -269,6 +279,7 @@ ROLE_PERMISSIONS: dict[UserRole, frozenset[Permission]] = {
             Permission.LABORATORY_READ,
             Permission.LAB_TEST_READ,
             Permission.LAB_PARAMETER_READ,
+            Permission.BLOCKCHAIN_LEDGER_READ,
         }
     ),
     UserRole.BEEKEEPER: frozenset(

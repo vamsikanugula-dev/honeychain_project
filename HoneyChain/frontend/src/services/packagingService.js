@@ -118,6 +118,12 @@ export async function releasePackage(packageId, payload = {}) {
   return data;
 }
 
+/** Issue (or return) the stable opaque QR resolver for one existing package. */
+export async function generatePackageQr(packageId) {
+  const { data } = await http.post(ENDPOINTS.packaging.packageQr(packageId), {});
+  return data;
+}
+
 /** The packages of one batch — the batch screen's own package register. */
 export async function listPackagesForBatch(batchId, { page = 1, pageSize = 20 } = {}) {
   const { data, meta } = await http.get(ENDPOINTS.packaging.packagesForBatch(batchId), {
